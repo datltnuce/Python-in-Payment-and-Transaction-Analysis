@@ -169,152 +169,90 @@ print(transaction_summary)
 ---
 
 ## 📊 Key Insights & Visualizations  
-**1. User profile Distribution** 
+**1. The trend of total transaction volume by day** 
 ```python
-# Distribution of User profile
-segment_by_user_count = RFM_transactions_final[['Segment', 'CustomerID']].groupby(['Segment']).count().reset_index().rename(columns={'CustomerID': 'user_volume'})
-segment_by_user_count['contribution_percent'] = round(segment_by_user_count['user_volume'] / segment_by_user_count['user_volume'].sum() * 100, 2)
-segment_by_user_count['type'] = 'user contribution'
+# Convert timeStamp to datetime
+transactions['timeStamp'] = pd.to_datetime(transactions['timeStamp'], unit='ms')
 
-segment_by_spending = RFM_transactions_final[['Segment', 'Monetery']].groupby(['Segment']).sum().reset_index().rename(columns={'Monetery': 'spending'})
-segment_by_spending['contribution_percent'] = segment_by_spending['spending'] / segment_by_spending['spending'].sum() * 100
-segment_by_spending['type'] = 'spending contribution'
+# Aggregate transactions by date to observe trends
+transactions['date'] = transactions['timeStamp'].dt.date
 
-segment_agg = pd.concat([segment_by_user_count, segment_by_spending])
+# Visualize the trend of total transaction volume by day
+plt.figure(figsize=(12, 5))
+daily_trend = transactions.groupby('date')['volume'].sum()
+sns.lineplot(x=daily_trend.index, y=daily_trend.values, marker='o', color='b')
 
-# Visualize the distribution of User profile
-plt.figure(figsize=(15, 8))
-sns.barplot(data=segment_agg, x='Segment', y='contribution_percent', hue='type')
-plt.title('The overall distribution of user profile using RFM Model')
 plt.xticks(rotation=45)
+plt.xlabel("Date")
+plt.ylabel("Total Transaction Volume")
+plt.title("Transaction Volume Trend Over Time")
+plt.grid(True)
 plt.show()
 ```
-![Image](https://github.com/user-attachments/assets/a0905645-3452-4f80-aa87-bc164766a3cd)
+![Image](https://github.com/user-attachments/assets/ee3d72ce-d1c7-470b-80f6-59c8433e067d)
 
-**Data Analysis:**<br>
+Insight:
+- Transactions surged on May 1st and 2nd, 2023, then showed a downward trend from May 3rd onwards.
+- A significant drop occurred between May 3rd and 4th, possibly due to an anomaly or system change.
+- Towards the end of the observed period (May 6th - 7th, 2023), transaction volume continued to decline slightly.
 
-Group: At Risk Customer and Cannot Lose Them Customer are the two most important customer groups as they account for a large proportion of both volume and revenue. However, these customers haven't used the product for a long time, showing signs of declining interest and high risk of churning.<br>
+Recommendation:
+- Investigate the reason behind the sharp increase on May 1st - 2nd: It could be due to a promotional campaign or an event that attracted more transactions.
+- Analyze the cause of the sharp decline from May 3rd: Verify if there were system issues, transaction errors, or other factors affecting e-wallet usage.
+- Strengthen transaction-stimulating campaigns over the weekends: If a decline is observed towards the end of the period, consider offering incentives to maintain stable transaction volumes.
 
-Suggestions:<br>
-- Special promotion campaigns: Target these customers with exclusive offers to motivate them to return.<br>
-- Personalized notifications: Send relevant notifications, highlighting product value, or announce new features to revive interest.<br>
-- Feedback surveys: Investigate reasons for declining engagement to develop appropriate solutions.
+Summary: 
+- Transactions spiked at the beginning of May due to unidentified factors, followed by a sharp decline. Further investigation is needed, along with potential incentives to sustain stable transaction volumes.
 
-Group: Loyal, New Customer, Potential Loyalist, and Promising make up a large number of customers. However, their transaction value is low, leading to limited overall revenue contribution. This group has development potential if properly stimulated.<br>
-
-Summary:<br>
-- Cross-selling and up-selling strategies: Introduce complementary products/services to increase their transaction value.<br>
-- Encourage consumption through loyalty programs: Implement point accumulation policies, discounts when reaching certain spending thresholds.<br>
-- Enhanced interaction: Use email, marketing campaign notifications to build long-term relationships.
-
-**2. Frequency Distribution** 
+**2. Transaction count by hour and day of the week** 
 ```python
-# Distribution of Frequency
-binsF = [0, 2, 5, 20, np.inf]
-labelsF = ['1-2', '2-5', '5-20', '20+']
-RFM_transactions['FrequencyGroup'] = pd.cut(RFM_transactions['Frequency'], bins=binsF, labels=labelsF)
-fig, ax = plt.subplots(figsize=(8, 3))
-sns.countplot(x='FrequencyGroup', data=RFM_transactions, ax=ax)
-ax.set_title('Distribution of Frequency')
-ax.yaxis.set_visible(False)
-ax.spines['left'].set_visible(False)
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
+# Convert problematic columns to numeric, forcing errors to NaN
+transactions['sender_id'] = pd.to_numeric(transactions['sender_id'], errors='coerce')
+transactions['receiver_id'] = pd.to_numeric(transactions['receiver_id'], errors='coerce')
 
-# Visualize the distribution of Frequency
-for container in ax.containers:
-    ax.bar_label(container, label_type='edge', padding=2)
+# Heatmap of the correlation matrix without displaying numbers
+plt.figure(figsize=(10, 8))
+numeric_cols = transactions.select_dtypes(include=['number'])
+corr_matrix = numeric_cols.corr()
+
+# Heatmap of transaction count by hour and day of the week without displaying numbers
+heatmap_data = transactions.pivot_table(index='day_of_week', columns='hour', values='transaction_id', aggfunc='count')
+
+# Reorder days of the week
+heatmap_data = heatmap_data.reindex(days_order)
+
+# Plot heatmap
+plt.figure(figsize=(12, 6))
+sns.heatmap(heatmap_data, cmap="YlGnBu", linewidths=0.5, annot=False)
+plt.xlabel("Hour of the Day")
+plt.ylabel("Day of the Week")
+plt.title("Heatmap of Transactions by Hour and Day of the Week")
 plt.show()
 ```
-![Image](https://github.com/user-attachments/assets/f74320fc-c323-4f92-b561-05c91d01037a)
+![Image](https://github.com/user-attachments/assets/0dadeddc-ee67-4ca9-9c17-28a991f6dd3f)
 
-**Data Analysis:**
-- Group 1-2 times (138 customers):<br>
-This is the group with the lowest number of customers.<br>
-These may be customers who made trial purchases or did not return after their first purchase.
+Insights:
+1. Transactions peak at night and early morning (12 AM - 6 AM)
+- The highest transaction volumes occur between 12 AM - 6 AM, especially on Monday to Wednesday.
+- This could be due to automated system transactions or users preferring to conduct online transactions at night.
+2. Sharp decline in transactions in the evening and late night
+- From around 5 PM - 11 PM, transaction volume significantly drops, particularly midweek and on weekends.
+- Wednesday and Thursday show a noticeable drop after 4 PM.
+3. More balanced transaction activity on weekends
+- Transactions remain relatively stable throughout Saturday and Sunday without any significant peaks.
+- This could indicate that customers have more free time on weekends to conduct transactions.
 
-- Group 2-5 times (169 customers):<br>
-The number of customers increases slightly compared to the 1-2 times group.<br>
-This group may consist of potential customers who are not yet loyal or regular.
+Recommendations:
+1. Optimize system performance at night
+- Since transaction volume is high between 12 AM - 6 AM, ensure the system has sufficient resources to handle transactions efficiently and avoid network congestion or system errors.
+- Consider scheduling system maintenance during low-transaction periods, such as 5 PM - 11 PM.
+2. Increase marketing campaigns in the evening
+- Since transaction volume drops from 5 PM - 11 PM, introduce promotional campaigns or discounts during this period to attract more users.
+- Example: “10% transaction fee discount from 6 PM - 10 PM” or “Cashback promotions for evening transactions.”
+3. Focus on weekend transaction strategies
+- Since weekend transactions are more evenly distributed, businesses can introduce exclusive weekend promotions to further boost activity.
+- Identify the key customer segments transacting on weekends to offer tailored promotions.
 
-- Group 5-20 times (969 customers):<br>
-This is the second-largest group, accounting for a significant proportion.<br>
-Customers in this group have relatively high purchase frequency and can be considered loyal customers or those with increasing frequency trends.
-
-- Group 20+ times (3,096 customers):<br>
-This is the largest group, dominating the distribution.<br>
-Customers in this group are considered loyal or bring the highest value to the business.
-
-**Summary:** <br>
-The reason for dividing the bins this way is:
-
-- Helps identify potential customers and groups with the highest revenue potential.
-- Supports marketing strategies and loyalty programs based on purchasing frequency.
-
-The business has a large number of regular customers (20+ group) with very high purchase frequency, which is a positive sign. However, the number of customers in the 1-2 and 2-5 times groups is quite low. The business should consider strategies to convert customers with lower frequency (groups 1-2 and 2-5) into higher frequency groups (5-20 and 20+).<br>
-
-Can implement promotional programs, customer care, or special offers to encourage more frequent shopping.
-
-**3. Distribution throughout the time**
-```python
-# RFM Distribution throughout the time and visualize
-transactions['YearMonth'] = transactions['InvoiceDate'].dt.to_period('M')
-rfm_time = transactions.groupby(['YearMonth', 'CustomerID']).agg({
-    'InvoiceDate': 'max',
-    'InvoiceNo': 'count',
-    'cost': 'sum'
-}).reset_index()
-
-rfm_time.columns = ['YearMonth', 'CustomerID', 'Recency', 'Frequency', 'Monetary']
-rfm_time['Recency'] = (last_day - rfm_time['Recency']).dt.days
-
-# Define the rfm_segment function
-def rfm_segment(row):
-    if row['Recency'] <= 30 and row['Frequency'] >= 10 and row['Monetary'] >= 1000:
-        return 'Champions'
-    elif row['Recency'] <= 90 and row['Frequency'] >= 5 and row['Monetary'] >= 500:
-        return 'Loyal Customers'
-    elif row['Recency'] <= 180 and row['Frequency'] >= 3 and row['Monetary'] >= 300:
-        return 'Potential Loyalists'
-    else:
-        return 'Others'
-
-# Customer segmentation over time
-rfm_time['Segment'] = rfm_time.apply(rfm_segment, axis=1)
-
-# Calculate the number of customers in each segment over time
-rfm_distribution = rfm_time.groupby(['YearMonth', 'Segment']).size().reset_index(name='Count')
-
-# Convert YearMonth to string for plotting
-rfm_distribution['YearMonth'] = rfm_distribution['YearMonth'].astype(str)
-
-# Visualize the distribution of RFM segments over time
-plt.figure(figsize=(15, 8))
-sns.lineplot(data=rfm_distribution, x='YearMonth', y='Count', hue='Segment')
-plt.title('RFM Distribution Throughout the Time')
-plt.xticks(rotation=45)
-plt.show()
-```
-![Image](https://github.com/user-attachments/assets/14cd2735-ed1e-4de7-ab43-ca0bae1fefcb)
-**Data Analysis:** 
-- Others Group (Blue):<br>
-Largest group in early 2011, but customer numbers decreased significantly from mid-2011.<br>
-Peak occurred around January 2011, then sharply declined approaching 0 by year-end.
-
-- Potential Loyalists Group (Orange):<br>
-Started increasing from June 2011, showing successful conversion of "Others" into potentially loyal customers.<br>
-However, numbers declined from October 2011 to year-end.
-
-- Loyal Customers Group (Green):<br>
-Emerged clearly from mid-2011 with slight growth from July 2011 to October 2011.<br>
-Subsequently, loyal customer numbers decreased towards year-end, indicating need for retention measures.
-
-- Champions Group (Red):<br>
-Latest to emerge, from October 2011, but showed slight decline in following months.<br>
-This is a crucial customer group, but relatively small in size, highlighting need for retention and development focus.
-
-**Summary:** <br>
-- Graph shows customer migration from "Others" to higher-value groups like "Potential Loyalists", "Loyal Customers", and "Champions". However, from October 2011 onwards, all customer groups showed declining trends, especially the "Others" group.<br>
-- Business needs to focus on improving customer retention strategies, particularly for "Champions" and "Loyal Customers" groups, as these provide the highest value. 
-
+Summary:
+- This heatmap highlights peak and low transaction hours, helping optimize system performance, improve marketing strategies, and enhance customer experience.
 ---
